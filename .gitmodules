@@ -1,0 +1,3 @@
+[submodule "vendor/poseidon"]
+	path = vendor/poseidon
+	url = https://github.com/RazorClient/zig-poseidon

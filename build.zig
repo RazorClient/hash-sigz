@@ -4,24 +4,28 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // const poseidon_dep = b.dependency("poseidon", .{});
+    // const poseidon = poseidon_dep.module("poseidon");
+
     const lib = b.addStaticLibrary(.{
         .name = "hash-sigz",
         .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
     });
+    // lib.root_module.addImport("poseidon", poseidon);
     b.installArtifact(lib);
 
-    const bench = b.addExecutable(.{
-        .name = "bench",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = .ReleaseFast,
-    });
-    b.installArtifact(bench);
+    // const bench = b.addExecutable(.{
+    //     .name = "bench",
+    //     .root_source_file = b.path("src/main.zig"),
+    //     .target = target,
+    //     .optimize = .ReleaseFast,
+    // });
+    // b.installArtifact(bench);
 
-    const run_bench = b.addRunArtifact(bench);
+    // const run_bench = b.addRunArtifact(bench);
 
-    const bench_step = b.step("bench", "Run benchmarks");
-    bench_step.dependOn(&run_bench.step);
+    // const bench_step = b.step("bench", "Run benchmarks");
+    // bench_step.dependOn(&run_bench.step);
 }
