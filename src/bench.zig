@@ -3,7 +3,7 @@ const time = std.time;
 const Allocator = std.mem.Allocator;
 const testing = std.testing;
 const ShaPRF = @import("prf/sha3.zig").ShaPRF;
-const xmss_signature = @import("../src/xmss.zig").XMSS;
+const ShaWinternitzXMSS = @import("../src/xmss.zig").ShaWinternitzXMSS;
 
 pub const BenchConfig = struct {
     name: []const u8,
@@ -15,7 +15,7 @@ pub const BenchConfig = struct {
 
 // Use ZBench?
 pub fn runBenchmark(allocator: Allocator, config: BenchConfig) !void {
-    var signature_scheme = try xmss_signature.init(allocator, config.lifetime_log2, config.chunk_size);
+    var signature_scheme = try ShaWinternitzXMSS.init(allocator, config.lifetime_log2, config.chunk_size, 26);
 
     var random = std.crypto.random;
 
@@ -28,13 +28,14 @@ pub fn runBenchmark(allocator: Allocator, config: BenchConfig) !void {
     var message: [32]u8 = undefined;
     random.bytes(&message);
 
-    const epoch: u32 = random.uintLessThan(u32, 1 << config.lifetime_log2);
+    const lifetime = @as(u32, 1) << @intCast(config.lifetime_log2);
+    const epoch: u32 = random.uintLessThan(u32, lifetime);
 
     // Sign
     const sign_start = time.nanoTimestamp();
     const sign_iterations = 1000;
     for (0..sign_iterations) |_| {
-        const signature = try signature_scheme.sign(&key_pair.secret_key, epoch, &message, &random);
+        const signature = try signature_scheme.sign(&key_pair.secret_key, epoch, &message);
         defer signature.deinit();
     }
     const sign_time = (time.nanoTimestamp() - sign_start) / sign_iterations;

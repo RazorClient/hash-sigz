@@ -1,10 +1,10 @@
 const std = @import("std");
 const ShaTweakHash = @import("tweak/sha3.zig").ShaTweakHash;
-const TweakableHash = @import("tweak/tweakable.zig").TweakableHash;
 
 pub fn chain(
     allocator: std.mem.Allocator,
-    hash: TweakableHash,
+    hash: anytype,
+    parameter: []u8,
     epoch: u32,
     chain_index: u16,
     start_pos: u16,
@@ -15,10 +15,10 @@ pub fn chain(
     
     for (0..steps) |j| {
         const pos = @as(u16, @intCast(start_pos)) + @as(u16, @intCast(j)) + 1;
-        const tweak = hash.chainTweak(epoch, chain_index, pos);
+        const tweak = hash.chain_tweak(epoch, chain_index, pos);
         defer allocator.free(tweak);
         
-        const next = hash.hash(tweak, &[_][]const u8{current});
+        const next = hash.hash(parameter, tweak, &[_][]u8{current});
         allocator.free(current);
         current = next;
     }
@@ -28,14 +28,17 @@ pub fn chain(
 
 test "chain associativity" {
     var allocator = std.testing.allocator;
-    var hash = try ShaTweakHash.init(allocator, 16, 32); 
-    defer hash.deinit();
+    var hash = ShaTweakHash.init( 16, 32); 
     
     const epoch = 9;
     const chain_index = 20;
     var random = std.crypto.random;
     
-    const start_value = random.bytes(hash.output_size);
+    var start_value = try allocator.alloc(u8, hash.hash_size);
+    random.bytes(&start_value);
+
+    // var s = []u8{10101011001010};
+    // random.bytes(&s);
     
     const total_steps = 16;
     

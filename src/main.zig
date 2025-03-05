@@ -17,3 +17,9 @@ pub fn main() !void {
         try bench.runBenchmark(allocator, config);
     }
 }
+
+test "all tests" {
+    _ = @import("utils.zig");
+    _ = @import("hash_chain.zig");
+    _=  @import("prf/sha3.zig");
+}
