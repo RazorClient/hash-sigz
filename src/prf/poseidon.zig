@@ -12,15 +12,11 @@ const PRF_DOMAIN_SEP: [16]u8 = .{
     0x21, 0xaf, 0x12, 0x00, 0x01, 0x11, 0xff, 0x00,
 };
 
-
 /// **`FieldType`** is a type parameter that would represents any finite field .
 /// - Output is an **array** of `FieldType.Element`.
 /// - **No dynamic allocations**.
 ///
-/// Example Usage:
-/// const PRF = Pseudorandom(ff.secp256k1);
-/// 
-pub fn Pseudorandom(comptime FieldType: type, comptime OutputLength: usize) type {
+pub fn PosiedonPRF(comptime FieldType: type, comptime OutputLength: usize) type {
     return struct {
         const Self = @This();
 
@@ -39,7 +35,7 @@ pub fn Pseudorandom(comptime FieldType: type, comptime OutputLength: usize) type
             return key;
         }
 
-        pub fn apply(self: *const Self, key: *const Key, epoch: u32, index: u64) Output {
+        pub fn apply(self: *const Self, key: *const Key, epoch: u32, index: u64) !Output {
             var hasher = Shake128.init(.{});
             hasher.update(&PRF_DOMAIN_SEP);
             hasher.update(key);
@@ -52,75 +48,73 @@ pub fn Pseudorandom(comptime FieldType: type, comptime OutputLength: usize) type
 
             var prf_output: [PRF_BYTES_PER_FE * OutputLength]u8 = undefined;
             hasher.squeeze(&prf_output);
-
+            // TODO: fix this part does out code depend upon ff in std or custom impl?
             var result: Output = undefined;
             for (0..OutputLength) |i| {
                 const chunk = prf_output[i * PRF_BYTES_PER_FE .. (i + 1) * PRF_BYTES_PER_FE];
-                result[i] = self.field.importLittleEndian(chunk) catch unreachable;
+                const val_u64 = std.mem.readInt(u64, @as(*const [8]u8, @ptrCast(chunk)), .little);
+                result[i] = try FieldType.Element.fromPrimitive(u64, self.field.modulus, val_u64);
+
+            
             }
             return result;
         }
     };
 }
 
-test "Pseudorandom output is deterministic" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = &arena.allocator;
+const dummyFf = struct {
+    pub const MOD_BITS = 64;
+    pub const Mod = ff.Modulus(MOD_BITS);
+    pub const Element = Mod.Fe;
 
-    const field = try ff.secp256k1(allocator);
+    // Here we use 0xffffffffffffffc5 (just as a simple odd number).
+    pub const PRIME = 0xffffffffffffffc5;
+    modulus: Mod,
 
-    // Define a PRF instance
-    const PRF4 = Pseudorandom(@TypeOf(field), 4);
+    pub fn init() !dummyFf {
+        const mod_ = try Mod.fromPrimitive(u64, PRIME);
+        return .{ .modulus = mod_ };
+    }
+    pub fn importLittleEndian(self: dummyFf, bytes: []const u8) !Element {
+        if (bytes.len != 8) {
+            return error.InvalidLength;
+        }
+        const val_u64 = std.mem.readInt(u64,  @as(*const [8]u8, @ptrCast(bytes)), .little);
+        return try self.modulus.Fe.fromPrimitive(u64, self.modulus, val_u64);
+    }
+};
+
+test "PosiedonPRF is deterministic" {
+    const field = try dummyFf.init();
+    const PRF4 = PosiedonPRF(dummyFf, 4);
     var prf = PRF4.init(field);
 
-    // Create a deterministic key
     var key: PRF4.Key = undefined;
-    for (0..KEY_LENGTH) |i| {
-        key[i] = @truncate(i % 256);
-    }
+    for (0..@sizeOf(PRF4.Key)) |i| key[i] = @truncate(i);
 
     const epoch: u32 = 42;
-    const index: u64 = 7;
+    const index: u64 = 123456789;
 
-    // Compute PRF output twice
     const out1 = prf.apply(&key, epoch, index);
     const out2 = prf.apply(&key, epoch, index);
 
-    // Expect the outputs to be the same
     try std.testing.expectEqual(out1, out2);
 }
-
-test "Pseudorandom output changes when epoch changes" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = &arena.allocator;
-
-    // Choose a finite field (e.g., BLS12-381 scalar field)
-    const field = try ff.bls12_381.scalarField(allocator);
-
-    const PRF4 = Pseudorandom(@TypeOf(field), 4);
+test "PosiedonPRF changes when epoch changes" {
+    const field = try dummyFf.init();
+    const PRF4 = PosiedonPRF(dummyFf, 4);
     var prf = PRF4.init(field);
 
     var key: PRF4.Key = undefined;
-    for (0..KEY_LENGTH) |i| {
-        key[i] = @truncate(i + 10);
-    }
+    for (0..@sizeOf(PRF4.Key)) |i| key[i] = @truncate(i + 10);
 
-    const index: u64 = 7;
+    const index: u64 = 9999;
     const epoch1: u32 = 42;
     const epoch2: u32 = 43;
 
-    const out1 = prf.apply(&key, epoch1, index);
-    const out2 = prf.apply(&key, epoch2, index);
+const out1 = try prf.apply(&key, epoch1, index);
+const out2 = try prf.apply(&key, epoch2, index);
 
-    // Ensure that different epochs give different outputs
-    var changed = false;
-    for (0..out1.len) |i| {
-        if (!out1[i].eql(out2[i])) {
-            changed = true;
-            break;
-        }
-    }
-    try std.testing.expect(changed);
+
+    try std.testing.expect(out1[0].v.limbs_buffer[0] != out2[0].v.limbs_buffer[0]);
 }

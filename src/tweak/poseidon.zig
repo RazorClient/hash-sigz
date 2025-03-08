@@ -1,114 +1,143 @@
 const std = @import("std");
-//todo:fix this lib issue
 const poseidon = @import("poseidon");
 
-// lib problems fix later layout what ill do 
-pub const PoseidonTweakHash = struct {
-    /// Example parameters 
-    capacity: usize,
-    rate: usize,
-    field_bits: usize, // e.g. 31-bit prime, 64-bit prime, etc.
-    output_elements: usize, // how many field elements you want in the output
 
-    /// Creates a new PoseidonTweakHash with given parameters.
-    pub fn init(
-        capacity: usize,
-        rate: usize,
-        field_bits: usize,
-        output_elements: usize,
-    ) PoseidonTweakHash {
-        return .{
-            .capacity = capacity,
-            .rate = rate,
-            .field_bits = field_bits,
-            .output_elements = output_elements,
-        };
-    }
+/// A tweak that can be either `.tree` or `.chain`.
+pub const PoseidonTweak = union(enum) {
+    tree: struct {
+        level: u8,
+        pos_in_level: u32,
+    },
+    chain: struct {
+        epoch: u32,
+        chain_index: u16,
+        pos_in_chain: u16,
+    },
 
-    /// Hash in "compression mode"
-    pub fn hash(
-        self: *PoseidonTweakHash,
-        parameter: []const u8,
-        tweak: PoseidonTweak,
-        msg_list: [][]const u8,
-        allocator: *std.mem.Allocator,
-    ) ![]u8 {
-        // 1. Convert parameter, tweak, messages into field elements or store them as bytes to be absorbed.
-        const tweak_bytes = tweak.toBytes();
-        
-        // In a real implementation, you'd do:
-        //   - break parameter, tweak_bytes, and msg bytes into field-element blocks
-        //   - perform the appropriate Poseidon permutation calls (compression or sponge).
-        // For demonstration, we'll do a naive "combine and call PoseidonPermutation(...)".
-
-        // 2. Combine all input data:
-        var combined_length = parameter.len + tweak_bytes.len;
-        for (msg_list) |m| {
-            combined_length += m.len;
+    /// Encode this tweak as a small array of Poseidon field elements.
+    pub fn toFieldElements(self: PoseidonTweak) []Poseidon.FieldElement {
+        switch (self) {
+            .tree => |t| {
+                var out: [2]Poseidon.FieldElement = .{
+                    Poseidon.FieldElement.fromU8(t.level),
+                    Poseidon.FieldElement.fromU32(t.pos_in_level),
+                };
+                return out[0..];
+            },
+            .chain => |c| {
+                var out: [3]Poseidon.FieldElement = .{
+                    Poseidon.FieldElement.fromU32(c.epoch),
+                    Poseidon.FieldElement.fromU32(@intCast(u32, c.chain_index)),
+                    Poseidon.FieldElement.fromU32(@intCast(u32, c.pos_in_chain)),
+                };
+                return out[0..];
+            },
         }
-
-        var combined = try allocator.alloc(u8, combined_length);
-        defer allocator.free(combined);
-
-        var cursor: usize = 0;
-        std.mem.copy(u8, combined[cursor..cursor+parameter.len], parameter);
-        cursor += parameter.len;
-        std.mem.copy(u8, combined[cursor..cursor+tweak_bytes.len], tweak_bytes);
-        cursor += tweak_bytes.len;
-
-        for (msg_list) |m| {
-            std.mem.copy(u8, combined[cursor..cursor+m.len], m);
-            cursor += m.len;
-        }
-
-        // 3. Convert 'combined' into field elements or pass to your PoseidonPermutation.
-        //    Let's pretend we have a function "poseidonCompress" that does the job.
-
-        const out_field = try poseidonCompress(combined, self.capacity, self.rate, self.field_bits, self.output_elements, allocator);
-
-        // 4. Convert field-element output to bytes if needed, then return.
-        //    In many zero-knowledge settings, you might just keep them as field elements.
-
-        // We'll assume poseidonCompress returns a slice of field elements. 
-        // We'll flatten them into a byte array for the final output.
-
-        // In real code, you might do something like:
-        // var out_bytes = try fieldElementsToBytes(out_field, self.field_bits, allocator);
-        // return out_bytes;
-        return out_field;
     }
 };
 
-/// A stub for the actual Poseidon-based compression. 
-/// Real code would apply the Poseidon permutation + capacity/rate logic.
-/// 
-/// In practice, you:
-///   1) Parse `data` into field elements
-///   2) Absorb them (and possibly do domain separation) 
-///   3) Run the Poseidon permutation
-///   4) Return the first `output_elements` as the compression output
-fn poseidonCompress(
-    data: []const u8,
-    capacity: usize,
-    rate: usize,
-    field_bits: usize,
-    output_elements: usize,
-    allocator: *std.mem.Allocator,
-) ![]u8 {
-    // Stub logic: you would convert the data into field elements 
-    // using e.g. "base-2^field_bits" or your chosen prime modulus. 
-    // Then run the Poseidon permutation.
-    // For demonstration, we'll just "pretend" and return data truncated to some length.
 
-    const output_len = output_elements * (field_bits / 8); // e.g. if field_bits=256, output_elements=1 => 32 bytes
-    const out = try allocator.alloc(u8, output_len);
-    // In real code: fill `out` with the real Poseidon result.
-    // For now, let's just copy some subset of the input:
-    if (data.len < output_len) {
-        // if input smaller than needed, repeat or something else
-        std.mem.copy(u8, out, data);
-    } else {
-        std.mem.copy(u8, out, data[0..output_len]);
+// pub fn tweakablePoseidonHash(input: []poseidon.FieldElement, tweak: []u8) !poseidon.FieldElement {
+//     // Step 1: Encode the tweak into field elements
+//     // var encodedTweak = try encodeTweak(tweak);
+
+//     // Step 2: Combine the input with the encoded tweak
+//     var combinedInput = std.array.concat(poseidon.FieldElement, input, encodedTweak);
+
+//     // Step 3: Compute the Poseidon hash on the combined input
+//     return poseidon.hash(combinedInput);
+// }
+
+
+/// Combine the tweak with the main input before hashing
+fn prepareInputWithTweak(input: []poseidon.FieldElement, tweak: []poseidon.FieldElement, t: usize) ![]poseidon.FieldElement {
+    var combined: []poseidon.FieldElement = try std.heap.page_allocator.alloc(poseidon.FieldElement, t);
+
+    const input_len = input.len;
+    const tweak_len = tweak.len;
+
+    if (input_len + tweak_len > t) {
+        return error.InputTooLarge; // Needs sponge mode
     }
-    return out;
+
+    // Copy input elements
+    std.mem.copy(poseidon.FieldElement, combined[0..input_len], input);
+
+    // Copy tweak elements
+    std.mem.copy(poseidon.FieldElement, combined[input_len..(input_len + tweak_len)], tweak);
+
+    // Zero-pad if needed
+    for (input_len + tweak_len..t) |i| {
+        combined[i] = poseidon.FieldElement.zero();
+    }
+
+    return combined;
 }
+
+pub const PoseidonTweakHash = struct {
+    const Self = @This();
+
+    parameter_size: usize,
+    output_size: usize,
+
+    pub fn init(parameter_size: usize, output_size: usize) Self {
+        return .{ .parameter_size = parameter_size, .output_size = output_size };
+    }
+
+    /// Absorb `parameter` + `tweak` + `msg` into Poseidon; return a (truncated) result.
+    pub fn hash(
+        self: Self,
+        parameter: []const u8,
+        tweak: PoseidonTweak,
+        msg: []const []const u8,
+    ) []u8 {
+        var ps = Poseidon.init();
+
+        // 1) Absorb parameter as field elements (could chunk it).
+        for (parameter) |b| {
+            Poseidon.absorb(&ps, Poseidon.FieldElement.fromU8(b));
+        }
+
+        // 2) Absorb the tweak as field elements
+        const tweak_fes = tweak.toFieldElements();
+        for (tweak_fes) |fe| {
+            Poseidon.absorb(&ps, fe);
+        }
+
+        // 3) Absorb each message chunk
+        //    Up to you how to chunk them into fields. Here again is a naive approach:
+        for (msg) |m| {
+            for (m) |b| {
+                Poseidon.absorb(&ps, Poseidon.FieldElement.fromU8(b));
+            }
+        }
+
+        // 4) Squeeze out a field element. If needed, do it multiple times 
+        //    and gather them into the final output. Here we just do one:
+        const fe_out = Poseidon.squeeze(&ps);
+
+        // 5) Convert that field element to a byte array. For example, 32 bytes:
+        var raw: [32]u8 = .{0};// or your actual field->bytes method
+        // copy out up to self.output_size
+        // e.g. pretend we wrote a fromFieldToBytes method:
+        // fromFieldToBytes(fe_out, &raw);
+        
+        // Return the first `output_size` bytes
+        return raw[0..self.output_size];
+    }
+
+    /// Example: generate random parameter of size `parameter_size`.
+    pub fn rand_parameter(_: Self, parameter_size: comptime_int) []u8 {
+        var buff: [parameter_size]u8 = undefined;
+        std.crypto.random.bytes(&buff);
+        return &buff;
+    }
+
+    pub fn tree_tweak(_: Self, level: u8, pos_in_level: u32) PoseidonTweak {
+        return .{ .tree = .{ .level = level, .pos_in_level = pos_in_level } };
+    }
+
+    pub fn chain_tweak(_: Self, epoch: u32, chain_index: u16, pos_in_chain: u16) PoseidonTweak {
+        return .{ .chain = .{ .epoch = epoch, .chain_index = chain_index, .pos_in_chain = pos_in_chain } };
+    }
+};

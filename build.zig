@@ -1,42 +1,44 @@
-const std = @import("std");
+const Builder = @import("std").Build;
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *Builder) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // const poseidon_dep = b.dependency("poseidon", .{});
-    // const poseidon = poseidon_dep.module("poseidon");
+    // Add dependency
+    const poseidon = b.dependency("poseidon", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("poseidon");
 
-    const lib = b.addStaticLibrary(.{
-        .name = "hash-sigz",
+    // Add main module
+    const mod = b.addModule("hash-sigz", Builder.Module.CreateOptions{
         .root_source_file = b.path("src/lib.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{
+            .{ .name = "poseidon", .module = poseidon },
+        },
     });
-    // lib.root_module.addImport("poseidon", poseidon);
+    _ = mod;
+
+    // Create static library
+    const lib = b.addStaticLibrary(.{
+        .name = "hash-sigz",
+        .root_source_file = .{ .cwd_relative = "src/lib.zig" },
+        .optimize = optimize,
+        .target = target,
+    });
     b.installArtifact(lib);
 
-    // const bench = b.addExecutable(.{
-    //     .name = "bench",
-    //     .root_source_file = b.path("src/main.zig"),
-    //     .target = target,
-    //     .optimize = .ReleaseFast,
-    // });
-    // b.installArtifact(bench);
-
-    // const run_bench = b.addRunArtifact(bench);
-
-    const bench_step = b.step("bench", "Run benchmarks");
-    bench_step.dependOn(&run_bench.step);
-
-    const unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
+    // Unit tests
+    const tests = b.addTest(.{
+        .root_source_file = .{ .cwd_relative = "src/main.zig" },
         .optimize = optimize,
+        .target = target,
     });
+    tests.root_module.addImport("poseidon", poseidon);
 
-    const run_unit_tests = b.addRunArtifact(unit_tests);
-
+    const run_tests = b.addRunArtifact(tests);
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_unit_tests.step);
+    test_step.dependOn(&run_tests.step);
 }

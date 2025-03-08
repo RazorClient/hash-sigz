@@ -2,7 +2,7 @@
     .name = "hash-sigz",
     .version = "0.0.0",
     .dependencies = .{
-        .poseidon = .{
+        .@"poseidon" = .{
             .url = "git+https://github.com/RazorClient/zig-poseidon/?ref=HEAD#1fa73e147403bf2c513666c76228fd9812e489d7",
             .hash = "122023552f32f1d6e835a05826ed924882f588bb1ccee5687a73606df2da4b298ed8",
         },
