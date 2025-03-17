@@ -1,10 +1,11 @@
 .{
-    .name = "hash-sigz",
+    .name = .hashsigz,
     .version = "0.0.0",
+    .fingerprint = 0xcbf9fa4a3e077191,
     .dependencies = .{
-        .@"poseidon" = .{
-            .url = "git+https://github.com/RazorClient/zig-poseidon/?ref=HEAD#1fa73e147403bf2c513666c76228fd9812e489d7",
-            .hash = "122023552f32f1d6e835a05826ed924882f588bb1ccee5687a73606df2da4b298ed8",
+        .poseidon = .{
+            .url = "git+https://github.com/RazorClient/zig-poseidon/?ref=HEAD#4fb18bedeed12d0e6525761c0217365ed0553d8d",
+            .hash = "poseidon-0.0.0-q5pBmxFeAAA8oxughjfgbe3J_8UBrT6KegB6ZCFvPaaQ",
         },
     },
     .paths = .{

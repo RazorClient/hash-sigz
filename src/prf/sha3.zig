@@ -8,10 +8,7 @@ pub const ShaPRF = struct {
     output_size: usize,
     key: [KEY_SIZE]u8,
 
-    const PRF_DOMAIN_SEPERATOR = [16]u8{
-        0x00, 0x01, 0x12, 0xff, 0x00, 0x01, 0xfa, 0xff, 
-        0x00, 0xaf, 0x12, 0xff, 0x01, 0xfa, 0xff, 0x00
-    };  
+    const PRF_DOMAIN_SEPERATOR = [16]u8{ 0x00, 0x01, 0x12, 0xff, 0x00, 0x01, 0xfa, 0xff, 0x00, 0xaf, 0x12, 0xff, 0x01, 0xfa, 0xff, 0x00 };
 
     pub fn init(output_size: usize) Self {
         // SHA PRF: Output length must be less than 256 bit
@@ -20,7 +17,7 @@ pub const ShaPRF = struct {
         var key: [KEY_SIZE]u8 = undefined;
         std.crypto.random.bytes(&key);
 
-        return Self {
+        return Self{
             .output_size = output_size,
             .key = key,
         };

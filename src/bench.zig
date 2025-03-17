@@ -10,7 +10,7 @@ pub const BenchConfig = struct {
     lifetime_log2: u8,
     chunk_size: u8,
     // encoding_type: enum { Winternitz, TargetSum },
-    // target_sum_offset_percent: ?u8, 
+    // target_sum_offset_percent: ?u8,
 };
 
 // Use ZBench?
@@ -42,23 +42,20 @@ pub fn runBenchmark(allocator: Allocator, config: BenchConfig) !void {
 
     // Verify
     const verify_start = time.nanoTimestamp();
-    const verify_iterations = 1000; 
+    const verify_iterations = 1000;
     const signature = try signature_scheme.sign(&key_pair.secret_key, epoch, &message, &random);
     defer signature.deinit();
-    
+
     for (0..verify_iterations) |_| {
         const is_valid = signature_scheme.verify(&key_pair.public_key, epoch, &message, &signature);
         std.debug.assert(is_valid);
     }
     const verify_time = (time.nanoTimestamp() - verify_start) / verify_iterations;
 
-    std.debug.print(
-        "{s}: keyGen={d}ms sign={d}µs verify={d}µs\n", 
-        .{
-            config.name,
-            @divTrunc(key_gen_time, 1000000),
-            @divTrunc(sign_time, 1000),
-            @divTrunc(verify_time, 1000),
-        }
-    );
+    std.debug.print("{s}: keyGen={d}ms sign={d}µs verify={d}µs\n", .{
+        config.name,
+        @divTrunc(key_gen_time, 1000000),
+        @divTrunc(sign_time, 1000),
+        @divTrunc(verify_time, 1000),
+    });
 }

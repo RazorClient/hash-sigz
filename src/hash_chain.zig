@@ -1,66 +1,51 @@
 const std = @import("std");
 const ShaTweakHash = @import("tweak/sha3.zig").ShaTweakHash;
 
-pub fn chain(
-    allocator: std.mem.Allocator,
-    hash: anytype,
-    parameter: []u8,
-    epoch: u32,
-    chain_index: u16,
-    start_pos: u16,
-    steps: usize,
-    start_value: []const u8
-) ![]u8 {
+pub fn chain(allocator: std.mem.Allocator, hash: anytype, parameter: []u8, epoch: u32, chain_index: u16, start_pos: u16, steps: usize, start_value: []const u8) ![]u8 {
     var current = try allocator.dupe(u8, start_value);
-    
+
     for (0..steps) |j| {
         const pos = @as(u16, @intCast(start_pos)) + @as(u16, @intCast(j)) + 1;
         const tweak = hash.chain_tweak(epoch, chain_index, pos);
         defer allocator.free(tweak);
-        
+
         const next = hash.hash(parameter, tweak, &[_][]u8{current});
         allocator.free(current);
         current = next;
     }
-    
+
     return current;
 }
 
 test "chain associativity" {
     var allocator = std.testing.allocator;
-    var hash = ShaTweakHash.init( 16, 32); 
-    
+    var hash = ShaTweakHash.init(16, 32);
+
     const epoch = 9;
     const chain_index = 20;
     var random = std.crypto.random;
-    
+
     var start_value = try allocator.alloc(u8, hash.hash_size);
     random.bytes(&start_value);
 
     // var s = []u8{10101011001010};
     // random.bytes(&s);
-    
+
     const total_steps = 16;
-    
-    const end_direct = try chain(
-        allocator, &hash, epoch, chain_index, 0, total_steps, start_value
-    );
+
+    const end_direct = try chain(allocator, &hash, epoch, chain_index, 0, total_steps, start_value);
     defer allocator.free(end_direct);
-    
+
     for (0..total_steps + 1) |split| {
         const steps_a = split;
         const steps_b = total_steps - split;
-        
-        const intermediate = try chain(
-            allocator, &hash, epoch, chain_index, 0, steps_a, start_value
-        );
-        
-        const end_indirect = try chain(
-            allocator, &hash, epoch, chain_index, steps_a, steps_b, intermediate
-        );
-        
+
+        const intermediate = try chain(allocator, &hash, epoch, chain_index, 0, steps_a, start_value);
+
+        const end_indirect = try chain(allocator, &hash, epoch, chain_index, steps_a, steps_b, intermediate);
+
         try std.testing.expectEqualSlices(u8, end_direct, end_indirect);
-        
+
         allocator.free(intermediate);
         allocator.free(end_indirect);
     }

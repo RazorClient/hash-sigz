@@ -54,8 +54,6 @@ pub fn PosiedonPRF(comptime FieldType: type, comptime OutputLength: usize) type 
                 const chunk = prf_output[i * PRF_BYTES_PER_FE .. (i + 1) * PRF_BYTES_PER_FE];
                 const val_u64 = std.mem.readInt(u64, @as(*const [8]u8, @ptrCast(chunk)), .little);
                 result[i] = try FieldType.Element.fromPrimitive(u64, self.field.modulus, val_u64);
-
-            
             }
             return result;
         }
@@ -79,7 +77,7 @@ const dummyFf = struct {
         if (bytes.len != 8) {
             return error.InvalidLength;
         }
-        const val_u64 = std.mem.readInt(u64,  @as(*const [8]u8, @ptrCast(bytes)), .little);
+        const val_u64 = std.mem.readInt(u64, @as(*const [8]u8, @ptrCast(bytes)), .little);
         return try self.modulus.Fe.fromPrimitive(u64, self.modulus, val_u64);
     }
 };
@@ -112,9 +110,8 @@ test "PosiedonPRF changes when epoch changes" {
     const epoch1: u32 = 42;
     const epoch2: u32 = 43;
 
-const out1 = try prf.apply(&key, epoch1, index);
-const out2 = try prf.apply(&key, epoch2, index);
-
+    const out1 = try prf.apply(&key, epoch1, index);
+    const out2 = try prf.apply(&key, epoch2, index);
 
     try std.testing.expect(out1[0].v.limbs_buffer[0] != out2[0].v.limbs_buffer[0]);
 }

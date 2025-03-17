@@ -155,11 +155,11 @@ pub fn XMSS(
             var tree = try MerkleTree(TweakHash).build(self.allocator, self.parameter, self.hash, public_keys);
 
             const key_pair = .{
-                .public_key = PublicKey {
+                .public_key = PublicKey{
                     .root = try self.allocator.dupe(u8, tree.root()),
                     .hash_parameter = try self.allocator.dupe(u8, self.parameter),
                 },
-                .secret_key = SecretKey {
+                .secret_key = SecretKey{
                     .prf_key = prf_key,
                     .tree = tree,
                     .parameter = try self.allocator.dupe(u8, self.parameter),
