@@ -4,8 +4,8 @@
     .fingerprint = 0xcbf9fa4a3e077191,
     .dependencies = .{
         .poseidon = .{
-            .url = "git+https://github.com/RazorClient/zig-poseidon/?ref=HEAD#4fb18bedeed12d0e6525761c0217365ed0553d8d",
-            .hash = "poseidon-0.0.0-q5pBmxFeAAA8oxughjfgbe3J_8UBrT6KegB6ZCFvPaaQ",
+            .url = "git+https://github.com/RazorClient/zig-poseidon/?ref=HEAD#8bb6c34c06ad8a9665151bea3cf04ecf71a031c6",
+            .hash = "poseidon-0.0.0-q5pBmxp3AABuVRbzOF4HfBilj6CL1D1RP9VlAleCzvnK",
         },
     },
     .paths = .{

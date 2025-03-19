@@ -5,10 +5,12 @@ pub fn build(b: *Builder) void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Add dependency
-    const poseidon = b.dependency("poseidon", .{
+    const poseidon_pkg = b.dependency("poseidon", .{
         .target = target,
         .optimize = optimize,
-    }).module("poseidon");
+    });
+    // const poseidon = poseidon_pkg.module("poseidon");
+    const babybear = poseidon_pkg.module("poseidon-babybear");
 
     // Add main module
     const mod = b.addModule("hash-sigz", Builder.Module.CreateOptions{
@@ -16,7 +18,7 @@ pub fn build(b: *Builder) void {
         .target = target,
         .optimize = optimize,
         .imports = &.{
-            .{ .name = "poseidon", .module = poseidon },
+            .{ .name = "poseidon", .module = babybear },
         },
     });
     _ = mod;
@@ -28,6 +30,8 @@ pub fn build(b: *Builder) void {
         .optimize = optimize,
         .target = target,
     });
+    lib.root_module.addImport("babybear", babybear);
+    // lib.root_module.addImport("poseidon", poseidon);
     b.installArtifact(lib);
 
     // Unit tests
@@ -36,7 +40,8 @@ pub fn build(b: *Builder) void {
         .optimize = optimize,
         .target = target,
     });
-    tests.root_module.addImport("poseidon", poseidon);
+    // tests.root_module.addImport("poseidon", poseidon);
+    tests.root_module.addImport("babybear", babybear);
 
     const run_tests = b.addRunArtifact(tests);
     const test_step = b.step("test", "Run unit tests");

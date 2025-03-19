@@ -1,5 +1,7 @@
 const std = @import("std");
 const bench = @import("bench.zig");
+// const poseidon = @import("poseidon");
+const babybear = @import("babybear");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -23,7 +25,10 @@ pub fn main() !void {
 }
 
 test "all tests" {
-    _ = @import("utils.zig");
-    _ = @import("hash_chain.zig");
-    _ = @import("prf/sha3.zig");
+    // _ = @import("utils.zig");
+    // _ = @import("hash_chain.zig");
+    // _ = @import("prf/sha3.zig");
+    //    _ = poseidon;
+
+    _ = babybear;
 }

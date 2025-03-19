@@ -1,10 +1,8 @@
 const std = @import("std");
 const rand = std.rand;
-const poseidon = @import("poseidon.zig"); // your Poseidon implementation
-const bn254 = @import("poseidon/bn254/fr.zig"); // BN254 field arithmetic
 
-// Alias our field element type. In Rust this is FpBabyBear.
-pub const F = bn254.Fr.MontgomeryDomainFieldElement;
+const PoseidonHash = @import("babybear").Poseidon2BabyBear;
+const Field = @import("babybear").babybear;
 
 // A constant for the length of the domain separator parameters.
 pub const DOMAIN_PARAMETERS_LENGTH: usize = 4;
@@ -13,9 +11,6 @@ pub const DOMAIN_PARAMETERS_LENGTH: usize = 4;
 pub const TWEAK_SEPARATOR_FOR_TREE_HASH: u64 = 0xAAAABBBB; // example constant
 pub const TWEAK_SEPARATOR_FOR_CHAIN_HASH: u64 = 0xCCCCDDDD; // example constant
 
-///////////////////////////////////////////////////////////////////////////////
-// PoseidonTweak
-///////////////////////////////////////////////////////////////////////////////
 
 /// An enum to represent tweak values (for tree or chain use).  
 /// For simplicity we assume that the combined tweak fits in a u64.
